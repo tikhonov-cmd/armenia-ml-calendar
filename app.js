@@ -93,9 +93,7 @@
     $("calendar").hidden = directory;
     $("directory").hidden = !directory;
     $("section-title").textContent = directory ? "Справочник" : "Календарь";
-    $("section-lead").textContent = directory
-      ? "Что искать в каждом канале, какой результат проверять и откуда взяты цифры."
-      : "Нажмите на отметку, чтобы увидеть детали. Для сравнения дат отметьте два или больше каналов.";
+    $("section-lead").hidden = !directory;
     for (const tab of ["calendar", "directory"]) {
       if ((tab === "directory") === directory) $("nav-" + tab).setAttribute("aria-current", "page");
       else $("nav-" + tab).removeAttribute("aria-current");
