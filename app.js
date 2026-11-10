@@ -3,6 +3,7 @@
 
   const { categories, audiences, statuses, phases, levels, channels, years, updated } = globalThis.armeniaAtlas;
   const byId = Object.fromEntries(channels.map(channel => [channel.id, channel]));
+  const pinnedChannel = byId["ml-school"];
   const categoryOrder = Object.keys(categories);
   const $ = id => document.getElementById(id);
   const value = id => $(id).value;
@@ -117,7 +118,6 @@
   function renderCalendar() {
     const [start, end] = yearBounds();
     const filtered = filteredChannels();
-    const entries = filtered.map(channel => ({ channel, events: inScope(channel, start, end) })).filter(entry => entry.events.length);
     const upcoming = state.view === "upcoming";
     $("year-controls").hidden = upcoming;
     $("legend").hidden = upcoming;
@@ -133,17 +133,21 @@
       return;
     }
     const calendarScroll = $("timeline")?.scrollLeft ?? 0;
-    const eventTotal = entries.reduce((sum, entry) => sum + entry.events.length, 0);
-    $("calendar-count").textContent = channelCount(entries.length) + " · " + eventCount(eventTotal);
-    $("calendar-note").innerHTML = "Шкала показывает этапы с датами на выбранный год. Каналы без дат и данные об охвате есть в <a href=\"#directory\">справочнике</a>.";
-    $("calendar-content").innerHTML = entries.length
-      ? timeline(entries, start, end)
-      : '<p class="empty">По этим фильтрам нет дат в ' + state.year + ' году. Измените фильтры или откройте справочник.</p>';
-    if ($("timeline")) $("timeline").scrollLeft = calendarScroll;
-    renderCompare(start, end, new Set(filtered.map(channel => channel.id)));
+    const pinned = { channel: pinnedChannel, events: inScope(pinnedChannel, start, end) };
+    const entries = filtered.filter(channel => channel !== pinnedChannel)
+      .map(channel => ({ channel, events: inScope(channel, start, end) })).filter(entry => entry.events.length);
+    const eventTotal = entries.reduce((sum, entry) => sum + entry.events.length, pinned.events.length);
+    $("calendar-count").textContent = channelCount(entries.length + 1) + " · " + eventCount(eventTotal);
+    $("calendar-note").innerHTML = "ML School Armenia закреплена на шкале при любых фильтрах. Даты показаны за выбранный год. Подробнее о каналах в <a href=\"#directory\">справочнике</a>.";
+    const noMatches = !entries.length && (!filtered.includes(pinnedChannel) || !pinned.events.length);
+    $("calendar-content").innerHTML = timeline(pinned, entries, start, end) + (noMatches
+      ? '<p class="empty">По этим фильтрам нет дат в ' + state.year + ' году. Измените фильтры или откройте справочник.</p>'
+      : '');
+    $("timeline").scrollLeft = calendarScroll;
+    renderCompare(start, end, filtered);
   }
 
-  function timeline(entries, start, end) {
+  function timeline(pinned, entries, start, end) {
     const monthNames = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
     const percent = date => position(date, start, end);
     const monthStarts = monthNames.map((_, i) => state.year + "-" + String(i + 1).padStart(2, "0") + "-01");
@@ -154,33 +158,38 @@
     const grid = '<div class="months gridlines" aria-hidden="true">' + monthNames.map(() => "<i></i>").join("") + "</div>";
     const header = '<div class="timeline-head row"><div class="row-label"><span>Канал</span><span class="head-hint">Выбор для сравнения</span></div><div class="months">' +
       monthNames.map(name => "<span>" + name + "</span>").join("") + "</div></div>";
+    function row({ channel, events }) {
+      const selected = state.selected.has(channel.id);
+      const laneEnds = [];
+      const marks = [...events].sort((a, b) => a.start.localeCompare(b.start)).map(event => {
+        let lane = laneEnds.findIndex(last => addDays(last, 6) < event.start);
+        if (lane < 0) lane = laneEnds.length;
+        laneEnds[lane] = event.end;
+        const left = percent(later(event.start, start));
+        const right = percent(nextDay(earlier(event.end, end)));
+        return markButton(channel, event, "--left:" + (event.start === event.end ? (left + right) / 2 : left) +
+          "%;--width:" + (right - left) + "%;--lane:" + lane);
+      }).join("");
+      const empty = events.length ? "" : '<span class="track-empty">Нет дат по выбранным условиям</span>';
+      return '<div class="timeline-row row' + (selected ? " selected" : "") + '" style="--lanes:' + Math.max(1, laneEnds.length) + '">' +
+        '<div class="row-label"><input type="checkbox" data-compare="' + channel.id + '" aria-label="Сравнить: ' + html(channel.title) + '"' +
+        (selected ? ' checked' : '') + '><button class="channel-button" type="button" data-channel="' + channel.id +
+        '">' + html(channel.title) + '</button></div><div class="track" data-track="' + channel.id + '">' + grid + todayLine + marks + empty + '</div></div>';
+    }
+    const pinnedRow = '<div class="timeline-pinned" style="--track-color:' + categories[pinned.channel.category].color + '">' + row(pinned) + '</div>';
     const groups = categoryOrder.filter(category => entries.some(entry => entry.channel.category === category)).map(category => {
       const group = categories[category];
-      const rows = entries.filter(entry => entry.channel.category === category).map(({ channel, events }) => {
-        const selected = state.selected.has(channel.id);
-        const laneEnds = [];
-        const marks = [...events].sort((a, b) => a.start.localeCompare(b.start)).map(event => {
-          let lane = laneEnds.findIndex(last => addDays(last, 6) < event.start);
-          if (lane < 0) lane = laneEnds.length;
-          laneEnds[lane] = event.end;
-          const left = percent(later(event.start, start));
-          const right = percent(nextDay(earlier(event.end, end)));
-          return markButton(channel, event, "--left:" + (event.start === event.end ? (left + right) / 2 : left) +
-            "%;--width:" + (right - left) + "%;--lane:" + lane);
-        }).join("");
-        return '<div class="timeline-row row' + (selected ? " selected" : "") + '" style="--lanes:' + laneEnds.length + '">' +
-          '<div class="row-label"><input type="checkbox" data-compare="' + channel.id + '" aria-label="Сравнить: ' + html(channel.title) + '"' +
-          (selected ? ' checked' : '') + '><button class="channel-button" type="button" data-channel="' + channel.id +
-          '">' + html(channel.title) + '</button></div><div class="track" data-track="' + channel.id + '">' + grid + todayLine + marks + '</div></div>';
-      }).join("");
+      const rows = entries.filter(entry => entry.channel.category === category).map(row).join("");
       return '<div class="timeline-group" style="--track-color:' + group.color + '"><h3 class="group-label"><i></i>' + group.name + '</h3>' + rows + '</div>';
     }).join("");
 
     return '<div class="timeline-scroll" id="timeline" role="region" tabindex="0" aria-label="Годовая шкала ' + state.year +
-      '"><div class="timeline" style="--months:' + columnWidths + '">' + header + groups + '</div></div>';
+      '"><div class="timeline" style="--months:' + columnWidths + '"><div class="timeline-top">' + header + pinnedRow + '</div>' + groups + '</div></div>';
   }
 
-  function renderCompare(start, end, visible) {
+  function renderCompare(start, end, filtered) {
+    const visible = new Set(filtered.map(channel => channel.id));
+    visible.add(pinnedChannel.id);
     const selected = [...state.selected].map(id => byId[id]);
     const available = selected.filter(channel => visible.has(channel.id)).map(channel => ({
       channel, events: inScope(channel, start, end),
@@ -351,7 +360,7 @@
     if (!state.selected.size) setCompareExpanded(false);
     event.target.closest(".timeline-row").classList.toggle("selected", event.target.checked);
     $("compare").hidden = !state.selected.size;
-    renderCompare(...yearBounds(), new Set(filteredChannels().map(channel => channel.id)));
+    renderCompare(...yearBounds(), filteredChannels());
   });
   document.addEventListener("click", event => {
     const button = event.target.closest("button");
