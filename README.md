@@ -23,9 +23,9 @@
 
 Страница работает как статический сайт без сборки. Для просмотра локальной версии откройте `index.html` в браузере.
 
-## Иллюстрация и шрифты
+## Архивная иллюстрация и шрифты
 
-Иллюстрация `assets/yerevan.webp` создана встроенным Image Gen по текстовому описанию и сохранена в WebP. Это художественная интерпретация Еревана. Точный промпт:
+Для первой версии страницы иллюстрацию `assets/yerevan.webp` создали в Image Gen и сохранили в WebP. Это художественная интерпретация Еревана. Точный промпт:
 
 > Use case: stylized-concept. Asset type: panoramic editorial artwork for the right half of an interactive calendar about Armenian science education. A tactile screenprinted view inspired by Yerevan's pink tuff architecture, with the monumental tiered stone terraces of the Cascade as foreground and a distant soft blue-violet Mount Ararat silhouette, two or three peach building volumes, spare olive-green cypress trees, warm natural ivory paper, pale lavender shadows and subtle grain. Strong simplified architectural geometry, carefully restrained, elegant independent atlas cover from a contemporary editorial designer. Landscape 3:2, horizontal composition, warm morning light, ample pale sky, no people, no text, no maps, no flags, no logos, no watermark. One cohesive clean frame, no borders or panels.
 
