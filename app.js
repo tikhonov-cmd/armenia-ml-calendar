@@ -369,10 +369,11 @@
     }
     const category = categories[channel.category];
     const people = channel.audience.map(key => audiences[key]).join(" · ");
-    const schedule = channel.events.length ? '<ul class="detail-schedule">' + channel.events.map(item => '<li' +
-      (item === event ? ' class="current-event"' : '') + '><span><strong>' + html(item.label) + '</strong><small>' +
+    const schedule = channel.events.length ? '<ul class="detail-schedule">' + channel.events.map((item, index) => '<li' +
+      (item === event ? ' class="current-event"' : '') + '><button type="button" class="detail-stage" data-stage-channel="' +
+      channel.id + '" data-stage-index="' + index + '" title="Показать на шкале"><strong>' + html(item.label) + '</strong><small>' +
       html(eventDates(item)) + (item.status === "exact" ? "" : ' · ' + statuses[item.status]) +
-      '</small></span>' + source(item.url || channel.url, "Даты") + '</li>').join("") + '</ul>'
+      '</small></button>' + source(item.url || channel.url, "Источник") + '</li>').join("") + '</ul>'
       : '<p>На шкале 2026–27 нет дат для этого канала.</p>';
     $("detail-heading").innerHTML = '<div class="card-meta" style="--track-color:' + category.color + '"><span><i></i>' +
       category.name + '</span><span>' + html(channel.place) + '</span></div><h2 id="detail-title">' +
@@ -389,6 +390,23 @@
     $("detail-content").scrollTop = 0;
     positionDetail();
     detailPopover.querySelector(".detail-close").focus({ preventScroll: true });
+  }
+
+  function showStageOnTimeline(channel, index) {
+    const event = channel.events[index];
+    const [start, end] = periodBounds();
+    if (event.end < start || event.start > end) state.year = null;
+    if (value("certainty") && value("certainty") !== event.status) $("certainty").value = "";
+    detailPopover.hidePopover();
+    if ($("calendar").hidden) history.pushState(null, "", "#calendar");
+    state.view = "timeline";
+    changeSection();
+
+    const marker = $("timeline").querySelector('.mark[data-channel="' + channel.id + '"][data-event="' + index + '"]');
+    if (!marker) return;
+    marker.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+    marker.focus({ preventScroll: true });
+    openDetail(marker, channel, event);
   }
 
   detailPopover.addEventListener("beforetoggle", event => {
@@ -434,8 +452,10 @@
   document.addEventListener("click", event => {
     const button = event.target.closest("button");
     if (!button) return;
-    const { year, view, channel, event: index } = button.dataset;
-    if (year) {
+    const { year, view, channel, event: index, stageChannel, stageIndex } = button.dataset;
+    if (stageChannel) {
+      showStageOnTimeline(byId[stageChannel], Number(stageIndex));
+    } else if (year) {
       state.year = year === "all" ? null : Number(year);
       if ($("timeline")) $("timeline").scrollLeft = 0;
       render();
