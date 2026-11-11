@@ -8,9 +8,9 @@
   <title>Календарь ML-траекторий в Армении</title>
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
   <!-- Update these versions when the corresponding files change. -->
-  <link rel="stylesheet" href="./styles.css?v=88bb126">
-  <script defer src="./data.js"></script>
-  <script defer src="./app.js?v=88bb126"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261111">
+  <script defer src="./data.js?v=20261111"></script>
+  <script defer src="./app.js?v=20261111"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">К содержанию</a>
@@ -53,12 +53,13 @@
 
       <section id="calendar" aria-labelledby="section-title">
         <div class="calendar-tools">
-          <div class="segmented" id="year-controls" role="group" aria-label="Календарный год">
-            <button type="button" data-year="2026" aria-pressed="true">2026</button>
+          <div class="segmented" id="year-controls" role="group" aria-label="Период календаря">
+            <button type="button" data-year="all" aria-pressed="true">2026–2027</button>
+            <button type="button" data-year="2026" aria-pressed="false">2026</button>
             <button type="button" data-year="2027" aria-pressed="false">2027</button>
           </div>
           <div class="segmented view-controls" role="group" aria-label="Вид календаря">
-            <button type="button" data-view="timeline" aria-pressed="true">Годовая шкала</button>
+            <button type="button" data-view="timeline" aria-pressed="true">Шкала</button>
             <button type="button" data-view="upcoming" aria-pressed="false">Ближайшие</button>
           </div>
           <label id="date-filter" class="compact-label">
@@ -67,9 +68,9 @@
           </label>
         </div>
         <div class="legend" id="legend" aria-label="Обозначения на шкале">
-          <span><i class="legend-icon exact"></i> Опубликованные даты</span>
-          <span><i class="legend-icon approximate"></i> Ориентир</span>
-          <span><i class="legend-icon tentative"></i> Предварительные даты</span>
+          <span><i class="legend-icon preparatory" aria-hidden="true"></i> Заявки, подготовка и отбор</span>
+          <span><i class="legend-icon main-stage" aria-hidden="true"></i> Основные этапы, финалы и итоги</span>
+          <span><i class="legend-icon uncertain-date" aria-hidden="true"></i> Даты требуют уточнения</span>
           <span><i class="legend-icon today"></i> Сегодня</span>
           <span id="overlap-legend" hidden><i class="legend-icon overlap"></i> Пересечение</span>
         </div>
@@ -118,7 +119,7 @@
 
   <footer class="footer wrap">
     <span>Атлас ML-траекторий в Армении</span>
-    <span>Срез открытых источников · 10 ноября 2026</span>
+    <span>Срез открытых источников · 11 ноября 2026</span>
     <a href="https://github.com/tikhonov-cmd/armenia-ml-calendar">Файлы и методика <svg class="action-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 11 11 5M6 5h5v5"/></svg></a>
   </footer>
 

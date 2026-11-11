@@ -115,9 +115,9 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .legend { display: flex; gap: 7px 21px; flex-wrap: wrap; margin-top: 12px; color: var(--muted); font-size: .78rem; }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
 .legend-icon { display: inline-block; width: 21px; height: 9px; border-radius: 2px; color: var(--green); }
-.legend-icon.exact { background: var(--green); }
-.legend-icon.approximate { border: 1px dashed var(--green); background: #e5e9dc; }
-.legend-icon.tentative { border: 1px dotted var(--green); }
+.legend-icon.main-stage { background: var(--green); }
+.legend-icon.preparatory { border: 1px dashed var(--green); }
+.legend-icon.uncertain-date { height: 9px; border-bottom: 2px dotted var(--ink); border-radius: 0; }
 .legend-icon.overlap { width: 9px; height: 12px; background: #ddb397; border-inline: 1px solid #a96c4e; }
 .legend-icon.today { width: 2px; height: 13px; border-radius: 0; background: var(--rust); margin-left: 5px; }
 .result-count { margin-block: 12px 7px; color: var(--muted); font-size: .82rem; font-variant-numeric: tabular-nums; }
@@ -127,6 +127,7 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 
 .timeline-scroll { max-height: min(66vh, 590px); overflow: auto; scrollbar-color: #a7aa99 var(--paper); border: 1px solid var(--rule); border-radius: 8px; background: var(--white); }
 .timeline { min-width: 860px; --label-width: clamp(218px, 24vw, 305px); }
+.timeline-wide { min-width: 1090px; }
 .row { display: grid; grid-template-columns: var(--label-width) minmax(0, 1fr); }
 .row-label { display: flex; gap: 9px; align-items: center; min-width: 0; padding: 6px 10px 6px 12px; border-right: 1px solid var(--rule); }
 .row-label input { flex: none; width: 16px; height: 16px; margin: 0; cursor: pointer; }
@@ -139,6 +140,8 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .months { display: grid; grid-template-columns: var(--months); min-width: 0; }
 .months > span { padding-block: 8px; text-align: center; }
 .months > :not(:first-child) { border-left: 1px solid var(--track-rule); }
+.months > .year-start, .months > .timeline-year + .timeline-year { border-left-color: #a8a091; }
+.timeline-year { grid-column: span 12; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
 .gridlines { position: absolute; inset: 0; pointer-events: none; }
 .group-label { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-block: 1px solid var(--rule); background: #f1eee5; font-size: .77rem; color: var(--track-color); }
 .timeline-top + .timeline-group .group-label { border-top: 0; }
@@ -159,8 +162,9 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .mark::before { content: ""; position: absolute; inset: 4px 0; border-radius: 3px; border: 1px solid var(--track-color); background: var(--track-color); }
 .mark.point { width: 16px; transform: translateX(-50%); }
 .mark.point::before { inset: 4px 3px; border-radius: 50%; }
-.mark.approximate::before { border-style: dashed; background: color-mix(in srgb, var(--track-color) 13%, var(--white)); }
-.mark.tentative::before { border-style: dotted; border-width: 2px; background: var(--white); }
+.mark.preparatory::before { border-style: dashed; background: color-mix(in srgb, var(--track-color) 10%, var(--white)); }
+.mark.approximate::after, .mark.tentative::after { content: ""; position: absolute; inset: auto 0 0; border-bottom: 2px dotted var(--ink); }
+.mark.point::after { inset-inline: 3px; }
 .mark:hover, .mark:focus-visible { z-index: 2; }
 .mark:hover::before { inset-block: 2px; }
 .mark:focus-visible { outline-offset: 1px; }

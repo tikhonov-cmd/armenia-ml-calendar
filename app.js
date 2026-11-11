@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const { categories, audiences, statuses, phases, levels, channels, years, updated } = globalThis.armeniaAtlas;
+  const { categories, audiences, statuses, phases, levels, channels, years } = globalThis.armeniaAtlas;
   const byId = Object.fromEntries(channels.map(channel => [channel.id, channel]));
   const pinnedChannel = byId["ml-school"];
   const categoryOrder = Object.keys(categories);
@@ -13,7 +13,6 @@
   const shortDate = new Intl.DateTimeFormat("ru", { day: "numeric", month: "short", timeZone: "UTC" });
   const longMonth = new Intl.DateTimeFormat("ru", { month: "long", year: "numeric", timeZone: "UTC" });
   const utcDate = date => new Date(date + "T00:00:00Z");
-  const yearOf = date => Number(date.slice(0, 4));
   const addDays = (date, days) => new Date(+utcDate(date) + days * 864e5).toISOString().slice(0, 10);
   const nextDay = date => addDays(date, 1);
   const position = (date, start, end) => (+utcDate(date) - +utcDate(start)) / (+utcDate(nextDay(end)) - +utcDate(start)) * 100;
@@ -25,8 +24,8 @@
   }).formatToParts(new Date());
   const todayPart = type => todayParts.find(part => part.type === type).value;
   const today = [todayPart("year"), todayPart("month"), todayPart("day")].join("-");
-  const initialYear = years.includes(yearOf(today)) ? yearOf(today) : years.at(-1);
-  const state = { year: initialYear, view: "timeline", selected: new Set() };
+  const preparatoryPhases = new Set(["apply", "preparation", "selection"]);
+  const state = { year: null, view: "timeline", selected: new Set() };
 
   const html = input => String(input).replace(/[&<>"']/g, letter => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -85,8 +84,8 @@
       (!value("certainty") || value("certainty") === event.status));
   }
 
-  function yearBounds() {
-    return [state.year + "-01-01", state.year + "-12-31"];
+  function periodBounds() {
+    return [(state.year ?? years[0]) + "-01-01", (state.year ?? years.at(-1)) + "-12-31"];
   }
 
   function changeSection() {
@@ -109,21 +108,22 @@
 
   function markButton(channel, event, positioning = "") {
     const label = channel.title + ". " + event.label + ", " + eventDates(event) + ". " + statuses[event.status];
-    const tooltip = event.label + " · " + eventDates(event, false);
-    return '<button class="mark ' + event.status + (event.start === event.end ? ' point' : '') +
+    const tooltip = event.label + " · " + eventDates(event) + " · " + statuses[event.status];
+    const shape = preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
+    return '<button class="mark ' + shape + ' ' + event.status + (event.start === event.end ? ' point' : '') +
       '" type="button" data-channel="' + channel.id + '" data-event="' + channel.events.indexOf(event) +
       '" aria-label="' + html(label) + '" title="' + html(tooltip) + '" style="' + positioning + '"></button>';
   }
 
   function renderCalendar() {
-    const [start, end] = yearBounds();
+    const [start, end] = periodBounds();
     const filtered = filteredChannels();
     const upcoming = state.view === "upcoming";
     $("year-controls").hidden = upcoming;
     $("legend").hidden = upcoming;
     $("compare").hidden = upcoming || !state.selected.size;
     for (const button of document.querySelectorAll("[data-year]")) {
-      button.setAttribute("aria-pressed", String(Number(button.dataset.year) === state.year));
+      button.setAttribute("aria-pressed", String(button.dataset.year === String(state.year ?? "all")));
     }
     for (const button of document.querySelectorAll("[data-view]")) {
       button.setAttribute("aria-pressed", String(button.dataset.view === state.view));
@@ -138,10 +138,10 @@
       .map(channel => ({ channel, events: inScope(channel, start, end) })).filter(entry => entry.events.length);
     const eventTotal = entries.reduce((sum, entry) => sum + entry.events.length, pinned.events.length);
     $("calendar-count").textContent = channelCount(entries.length + 1) + " · " + eventCount(eventTotal);
-    $("calendar-note").innerHTML = "ML School Armenia закреплена на шкале при любых фильтрах. Даты показаны за выбранный год. Подробнее о каналах в <a href=\"#directory\">справочнике</a>.";
+    $("calendar-note").innerHTML = "ML School Armenia закреплена на шкале при любых фильтрах. На шкале показаны этапы с опубликованными сроками. Подробнее о каналах в <a href=\"#directory\">справочнике</a>.";
     const noMatches = !entries.length && (!filtered.includes(pinnedChannel) || !pinned.events.length);
     $("calendar-content").innerHTML = timeline(pinned, entries, start, end) + (noMatches
-      ? '<p class="empty">По этим фильтрам нет дат в ' + state.year + ' году. Измените фильтры или откройте справочник.</p>'
+      ? '<p class="empty">За выбранный период по этим фильтрам нет дат. Измените фильтры или откройте справочник.</p>'
       : '');
     $("timeline").scrollLeft = calendarScroll;
     renderCompare(start, end, filtered);
@@ -150,19 +150,27 @@
   function timeline(pinned, entries, start, end) {
     const monthNames = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
     const percent = date => position(date, start, end);
-    const monthStarts = monthNames.map((_, i) => state.year + "-" + String(i + 1).padStart(2, "0") + "-01");
-    const monthPercents = [...monthStarts.map(percent), 100];
-    const columnWidths = monthNames.map((_, i) => (monthPercents[i + 1] - monthPercents[i]) + "fr").join(" ");
+    const periodYears = state.year === null ? years : [state.year];
+    const multiYear = periodYears.length > 1;
+    const laneGap = multiYear ? 13 : 8;
+    const periodLabel = multiYear ? periodYears[0] + "–" + periodYears.at(-1) : String(periodYears[0]);
+    const months = periodYears.flatMap((year, yearIndex) => monthNames.map((name, i) => ({
+      name, date: year + "-" + String(i + 1).padStart(2, "0") + "-01", yearStart: yearIndex > 0 && i === 0,
+    })));
+    const monthPercents = [...months.map(month => percent(month.date)), 100];
+    const columnWidths = months.map((_, i) => (monthPercents[i + 1] - monthPercents[i]) + "fr").join(" ");
     const showToday = today >= start && today <= end;
     const todayLine = showToday ? '<i class="today-line" aria-hidden="true" style="left:' + percent(today) + '%"></i>' : "";
-    const grid = '<div class="months gridlines" aria-hidden="true">' + monthNames.map(() => "<i></i>").join("") + "</div>";
+    const monthClass = month => month.yearStart ? ' class="year-start"' : "";
+    const grid = '<div class="months gridlines" aria-hidden="true">' + months.map(month => '<i' + monthClass(month) + '></i>').join("") + "</div>";
+    const yearLabels = multiYear ? periodYears.map(year => '<strong class="timeline-year">' + year + '</strong>').join("") : "";
     const header = '<div class="timeline-head row"><div class="row-label"><span>Канал</span><span class="head-hint">Выбор для сравнения</span></div><div class="months">' +
-      monthNames.map(name => "<span>" + name + "</span>").join("") + "</div></div>";
+      yearLabels + months.map(month => '<span' + monthClass(month) + '>' + month.name + '</span>').join("") + "</div></div>";
     function row({ channel, events }) {
       const selected = state.selected.has(channel.id);
       const laneEnds = [];
       const marks = [...events].sort((a, b) => a.start.localeCompare(b.start)).map(event => {
-        let lane = laneEnds.findIndex(last => addDays(last, 6) < event.start);
+        let lane = laneEnds.findIndex(last => addDays(last, laneGap) < event.start);
         if (lane < 0) lane = laneEnds.length;
         laneEnds[lane] = event.end;
         const left = percent(later(event.start, start));
@@ -183,8 +191,9 @@
       return '<div class="timeline-group" style="--track-color:' + group.color + '"><h3 class="group-label"><i></i>' + group.name + '</h3>' + rows + '</div>';
     }).join("");
 
-    return '<div class="timeline-scroll" id="timeline" role="region" tabindex="0" aria-label="Годовая шкала ' + state.year +
-      '"><div class="timeline" style="--months:' + columnWidths + '"><div class="timeline-top">' + header + pinnedRow + '</div>' + groups + '</div></div>';
+    return '<div class="timeline-scroll" id="timeline" role="region" tabindex="0" aria-label="Шкала ' + periodLabel +
+      '"><div class="timeline' + (multiYear ? ' timeline-wide' : '') + '" style="--months:' + columnWidths +
+      '"><div class="timeline-top">' + header + pinnedRow + '</div>' + groups + '</div></div>';
   }
 
   function renderCompare(start, end, filtered) {
@@ -197,7 +206,7 @@
     const titleList = selected.map(channel => '<span>' + html(channel.title) + '</span>').join("");
     const hiddenCount = selected.length - available.length;
     const intro = '<div class="compare-tags">' + titleList + '</div>' +
-      (hiddenCount ? '<p class="small-note">В текущем году и фильтрах без видимых дат: ' + hiddenCount + '.</p>' : "");
+      (hiddenCount ? '<p class="small-note">В выбранном периоде и фильтрах без видимых дат: ' + hiddenCount + '.</p>' : "");
     const overlaps = [];
     available.forEach((first, index) => {
       available.slice(index + 1).forEach(second => {
@@ -236,14 +245,14 @@
     if (available.length < 2) {
       result = '<p class="small-note">Для сравнения выберите ещё один канал с видимыми датами.</p>';
     } else if (!overlaps.length) {
-      result = '<p class="small-note">В выбранном году этапы этих каналов по датам не пересекаются.</p>';
+      result = '<p class="small-note">В выбранном периоде этапы этих каналов по датам не пересекаются.</p>';
     } else {
       result = '<p class="small-note">' + count + ' по календарю. Учитывайте аудиторию и формат каждого этапа.</p><ul class="overlap-list">' +
         overlaps.map(({ first, second, a, b, from, to }) => {
           const uncertain = a.status !== "exact" || b.status !== "exact";
           const label = a.status === "approximate" || b.status === "approximate"
             ? longMonth.formatRange(utcDate(from), utcDate(to))
-            : dates(from, to, false);
+            : dates(from, to, state.year === null);
           return '<li><strong>' + html(label) + (uncertain ? ' <small>· уточнить</small>' : '') +
             '</strong><div>' + overlapButton(first, a) + overlapButton(second, b) + '</div></li>';
         }).join("") + '</ul>';
@@ -269,7 +278,7 @@
         channel.id + '" data-event="' + channel.events.indexOf(event) + '">' + html(event.label) +
         '</button><span class="upcoming-channel">' + html(channel.title) + '</span></div><span class="status ' + event.status +
         '">' + statuses[event.status] + '</span></li>').join("") + '</ul>'
-      : '<p class="empty">По этим фильтрам ближайших дат пока нет. В годовой шкале можно посмотреть архивные этапы.</p>';
+      : '<p class="empty">По этим фильтрам ближайших дат пока нет. На шкале можно посмотреть архивные этапы.</p>';
   }
 
   const categorySort = (a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category) || collator.compare(a.title, b.title);
@@ -360,14 +369,15 @@
     if (!state.selected.size) setCompareExpanded(false);
     event.target.closest(".timeline-row").classList.toggle("selected", event.target.checked);
     $("compare").hidden = !state.selected.size;
-    renderCompare(...yearBounds(), filteredChannels());
+    renderCompare(...periodBounds(), filteredChannels());
   });
   document.addEventListener("click", event => {
     const button = event.target.closest("button");
     if (!button) return;
     const { year, view, channel, event: index } = button.dataset;
     if (year) {
-      state.year = Number(year);
+      state.year = year === "all" ? null : Number(year);
+      if ($("timeline")) $("timeline").scrollLeft = 0;
       render();
     } else if (view) {
       state.view = view;
