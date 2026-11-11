@@ -8,9 +8,9 @@
   <title>Календарь ML-траекторий в Армении</title>
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
   <!-- Update these versions when the corresponding files change. -->
-  <link rel="stylesheet" href="./styles.css?v=20261111">
+  <link rel="stylesheet" href="./styles.css?v=20261111-detail">
   <script defer src="./data.js?v=20261111"></script>
-  <script defer src="./app.js?v=20261111"></script>
+  <script defer src="./app.js?v=20261111-detail"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">К содержанию</a>
@@ -123,12 +123,13 @@
     <a href="https://github.com/tikhonov-cmd/armenia-ml-calendar">Файлы и методика <svg class="action-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 11 11 5M6 5h5v5"/></svg></a>
   </footer>
 
-  <dialog id="detail-dialog" aria-labelledby="detail-title">
-    <div class="dialog-inner">
-      <form method="dialog"><button class="dialog-close" aria-label="Закрыть"><svg class="action-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></form>
-      <div id="detail-content"></div>
+  <section id="detail-popover" popover="auto" role="dialog" aria-labelledby="detail-title">
+    <div class="detail-header">
+      <div id="detail-heading"></div>
+      <button type="button" class="detail-close" popovertarget="detail-popover" popovertargetaction="hide" aria-label="Закрыть карточку"><svg class="action-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button>
     </div>
-  </dialog>
+    <div id="detail-content"></div>
+  </section>
   <noscript><p class="noscript">Чтобы открыть интерактивный календарь, включите JavaScript.</p></noscript>
 </body>
 </html>

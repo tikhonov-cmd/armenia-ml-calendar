@@ -7,6 +7,9 @@
   const categoryOrder = Object.keys(categories);
   const $ = id => document.getElementById(id);
   const value = id => $(id).value;
+  const detailPopover = $("detail-popover");
+  const detailButtonAttrs = ' aria-haspopup="dialog" aria-controls="detail-popover" aria-expanded="false"';
+  let detailTrigger = null;
   const numeric = new Intl.NumberFormat("ru-RU");
   const collator = new Intl.Collator("ru");
   const fullDate = new Intl.DateTimeFormat("ru", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -102,6 +105,7 @@
   }
 
   function render() {
+    if (detailPopover.matches(":popover-open")) detailPopover.hidePopover();
     if ($("calendar").hidden) renderDirectory();
     else renderCalendar();
   }
@@ -112,7 +116,7 @@
     const shape = preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
     return '<button class="mark ' + shape + ' ' + event.status + (event.start === event.end ? ' point' : '') +
       '" type="button" data-channel="' + channel.id + '" data-event="' + channel.events.indexOf(event) +
-      '" aria-label="' + html(label) + '" title="' + html(tooltip) + '" style="' + positioning + '"></button>';
+      '" aria-label="' + html(label) + '" title="' + html(tooltip) + '" style="' + positioning + '"' + detailButtonAttrs + '></button>';
   }
 
   function renderCalendar() {
@@ -182,7 +186,7 @@
       return '<div class="timeline-row row' + (selected ? " selected" : "") + '" style="--lanes:' + Math.max(1, laneEnds.length) + '">' +
         '<div class="row-label"><input type="checkbox" data-compare="' + channel.id + '" aria-label="Сравнить: ' + html(channel.title) + '"' +
         (selected ? ' checked' : '') + '><button class="channel-button" type="button" data-channel="' + channel.id +
-        '">' + html(channel.title) + '</button></div><div class="track" data-track="' + channel.id + '">' + grid + todayLine + marks + empty + '</div></div>';
+        '"' + detailButtonAttrs + '>' + html(channel.title) + '</button></div><div class="track" data-track="' + channel.id + '">' + grid + todayLine + marks + empty + '</div></div>';
     }
     const pinnedRow = '<div class="timeline-pinned" style="--track-color:' + categories[pinned.channel.category].color + '">' + row(pinned) + '</div>';
     const groups = categoryOrder.filter(category => entries.some(entry => entry.channel.category === category)).map(category => {
@@ -262,7 +266,7 @@
 
   function overlapButton(channel, event) {
     return '<button class="text-button" type="button" data-channel="' + channel.id + '" data-event="' +
-      channel.events.indexOf(event) + '">' + html(channel.title + " · " + event.label) + '</button>';
+      channel.events.indexOf(event) + '"' + detailButtonAttrs + '>' + html(channel.title + " · " + event.label) + '</button>';
   }
 
   function renderUpcoming(filtered) {
@@ -275,7 +279,7 @@
     $("calendar-content").innerHTML = events.length
       ? '<ul class="upcoming">' + events.map(({ channel, event }) => '<li style="--track-color:' + categories[channel.category].color +
         '"><span class="upcoming-date">' + html(eventDates(event)) + '</span><div><button class="text-button" type="button" data-channel="' +
-        channel.id + '" data-event="' + channel.events.indexOf(event) + '">' + html(event.label) +
+        channel.id + '" data-event="' + channel.events.indexOf(event) + '"' + detailButtonAttrs + '>' + html(event.label) +
         '</button><span class="upcoming-channel">' + html(channel.title) + '</span></div><span class="status ' + event.status +
         '">' + statuses[event.status] + '</span></li>').join("") + '</ul>'
       : '<p class="empty">По этим фильтрам ближайших дат пока нет. На шкале можно посмотреть архивные этапы.</p>';
@@ -321,25 +325,81 @@
       html(channel.title) + '</h3><p>' + html(channel.description) + '</p><div class="signal"><span class="signal-badge" aria-label="Уровень ' +
       channel.level + ' из 3">' + channel.level + '</span><div><strong>' + levels[channel.level].name + '</strong><p>' +
       html(channel.achievement) + '</p></div></div>' + metrics(channel) + formal(channel) + '<div class="card-footer">' +
-      source(channel.url, "О канале") + '<button class="text-button" type="button" data-channel="' + channel.id + '">Этапы и аудитория</button></div></article>';
+      source(channel.url, "О канале") + '<button class="text-button" type="button" data-channel="' + channel.id + '"' + detailButtonAttrs + '>Этапы и аудитория</button></div></article>';
   }
 
-  function openDetail(channel, event) {
+  function positionDetail() {
+    if (!detailTrigger) return;
+    const margin = 12;
+    const gap = 10;
+    const { clientWidth: viewportWidth, clientHeight: viewportHeight } = document.documentElement;
+    const anchor = detailTrigger.getBoundingClientRect();
+    const region = detailTrigger.closest(".timeline-scroll, .overlap-list");
+    const clip = region?.getBoundingClientRect();
+    const timelineTop = region?.querySelector(".timeline-top");
+    const clipTop = timelineTop && !timelineTop.contains(detailTrigger) ? timelineTop.getBoundingClientRect().bottom : clip?.top ?? 0;
+    if (!detailTrigger.isConnected || anchor.bottom <= Math.max(0, clipTop) ||
+        anchor.top >= Math.min(viewportHeight, clip?.bottom ?? viewportHeight) ||
+        anchor.right <= Math.max(0, clip?.left ?? 0) || anchor.left >= Math.min(viewportWidth, clip?.right ?? viewportWidth)) {
+      detailPopover.hidePopover();
+      return;
+    }
+
+    const { offsetWidth: width, offsetHeight: height } = detailPopover;
+    const roomRight = viewportWidth - anchor.right - gap - margin;
+    const roomLeft = anchor.left - gap - margin;
+    let top = anchor.top;
+    let left = anchor.right + gap;
+    if (roomRight < width && roomLeft >= width) {
+      left = anchor.left - gap - width;
+    } else if (roomRight < width) {
+      left = anchor.left;
+      const roomBelow = viewportHeight - anchor.bottom;
+      top = roomBelow >= height + gap + margin || roomBelow >= anchor.top
+        ? anchor.bottom + gap : anchor.top - gap - height;
+    }
+    detailPopover.style.left = Math.max(margin, Math.min(left, viewportWidth - width - margin)) + "px";
+    detailPopover.style.top = Math.max(margin, Math.min(top, viewportHeight - height - margin)) + "px";
+  }
+
+  function openDetail(trigger, channel, event) {
+    if (detailTrigger === trigger && detailPopover.matches(":popover-open")) {
+      detailPopover.hidePopover();
+      return;
+    }
     const category = categories[channel.category];
     const people = channel.audience.map(key => audiences[key]).join(" · ");
     const schedule = channel.events.length ? '<ul class="detail-schedule">' + channel.events.map(item => '<li' +
       (item === event ? ' class="current-event"' : '') + '><span><strong>' + html(item.label) + '</strong><small>' +
-      html(eventDates(item)) + ' · ' + statuses[item.status] + '</small></span>' + source(item.url || channel.url, "Даты") + '</li>').join("") + '</ul>'
+      html(eventDates(item)) + (item.status === "exact" ? "" : ' · ' + statuses[item.status]) +
+      '</small></span>' + source(item.url || channel.url, "Даты") + '</li>').join("") + '</ul>'
       : '<p>На шкале 2026–27 нет дат для этого канала.</p>';
-    $("detail-content").innerHTML = '<div class="card-meta" style="--track-color:' + category.color + '"><span><i></i>' +
+    $("detail-heading").innerHTML = '<div class="card-meta" style="--track-color:' + category.color + '"><span><i></i>' +
       category.name + '</span><span>' + html(channel.place) + '</span></div><h2 id="detail-title">' +
-      html(event?.label ?? channel.title) + '</h2>' + (event ? '<p class="detail-subtitle">' + html(channel.title) + '</p>' : '') +
+      html(event?.label ?? channel.title) + '</h2>' + (event ? '<p class="detail-subtitle">' + html(channel.title) + '</p>' : '');
+    $("detail-content").innerHTML =
       (event ? '<p class="event-date">' + html(eventDates(event)) + '</p><p class="status ' + event.status + '">' + statuses[event.status] +
         ' · ' + phases[event.phase] + '</p><p>' + source(event.url || channel.url, "Источник даты") + '</p>' : '') +
       '<p class="detail-audience">' + html(people) + '</p><p>' + html(channel.description) + '</p><h3>Этапы канала</h3>' + schedule +
       '<div class="detail-footer">' + source(channel.url, "О канале") + '</div>';
-    $("detail-dialog").showModal();
+    detailTrigger?.setAttribute("aria-expanded", "false");
+    detailTrigger = trigger;
+    trigger.setAttribute("aria-expanded", "true");
+    if (!detailPopover.matches(":popover-open")) detailPopover.showPopover({ source: trigger });
+    $("detail-content").scrollTop = 0;
+    positionDetail();
+    detailPopover.querySelector(".detail-close").focus({ preventScroll: true });
   }
+
+  detailPopover.addEventListener("beforetoggle", event => {
+    if (event.newState !== "closed") return;
+    detailTrigger?.setAttribute("aria-expanded", "false");
+    detailTrigger = null;
+  });
+  window.addEventListener("scroll", event => {
+    if (event.target !== $("detail-content")) positionDetail();
+  }, { capture: true, passive: true });
+  window.addEventListener("resize", positionDetail);
 
   $("filters").addEventListener("submit", event => event.preventDefault());
   $("filters").addEventListener("input", render);
@@ -384,11 +444,8 @@
       render();
     } else if (channel) {
       const record = byId[channel];
-      openDetail(record, record.events[index]);
+      openDetail(button, record, record.events[index]);
     }
-  });
-  $("detail-dialog").addEventListener("click", event => {
-    if (event.target === $("detail-dialog")) $("detail-dialog").close();
   });
   // Keep the panel navigation at the workspace heading, including on keyboard activation.
   for (const tab of ["calendar", "directory"]) {
