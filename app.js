@@ -110,13 +110,30 @@
     else renderCalendar();
   }
 
-  function markButton(channel, event, positioning = "") {
+  function markButton(channel, event, positioning = "", grouped = false) {
     const label = channel.title + ". " + event.label + ", " + eventDates(event) + ". " + statuses[event.status];
     const tooltip = event.label + " · " + eventDates(event) + " · " + statuses[event.status];
     const shape = preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
     return '<button class="mark ' + shape + ' ' + event.status + (event.start === event.end ? ' point' : '') +
+      (grouped ? ' cluster-member' : '') +
       '" type="button" data-channel="' + channel.id + '" data-event="' + channel.events.indexOf(event) +
       '" aria-label="' + html(label) + '" title="' + html(tooltip) + '" style="' + positioning + '"' + detailButtonAttrs + '></button>';
+  }
+
+  function timelineGroups(channel, events) {
+    const groups = [];
+    const isShort = event => event.status !== "approximate" && event.end < addDays(event.start, 3);
+    for (const event of [...events].sort((a, b) => a.start.localeCompare(b.start))) {
+      const previous = groups.at(-1);
+      if (channel.category === "olympiad" && previous && isShort(previous.events[0]) && isShort(event) &&
+          event.start <= addDays(previous.end, 4) && event.end < addDays(previous.start, 10)) {
+        previous.events.push(event);
+        previous.end = later(previous.end, event.end);
+      } else {
+        groups.push({ start: event.start, end: event.end, events: [event] });
+      }
+    }
+    return groups;
   }
 
   function renderCalendar() {
@@ -173,14 +190,27 @@
     function row({ channel, events }) {
       const selected = state.selected.has(channel.id);
       const laneEnds = [];
-      const marks = [...events].sort((a, b) => a.start.localeCompare(b.start)).map(event => {
-        let lane = laneEnds.findIndex(last => addDays(last, laneGap) < event.start);
+      const marks = timelineGroups(channel, events).map(group => {
+        let lane = laneEnds.findIndex(last => addDays(last, laneGap) < group.start);
         if (lane < 0) lane = laneEnds.length;
-        laneEnds[lane] = event.end;
-        const left = percent(later(event.start, start));
-        const right = percent(nextDay(earlier(event.end, end)));
-        return markButton(channel, event, "--left:" + (event.start === event.end ? (left + right) / 2 : left) +
-          "%;--width:" + (right - left) + "%;--lane:" + lane);
+        laneEnds[lane] = group.end;
+        const grouped = group.events.length > 1;
+        const members = group.events.map(event => {
+          const left = percent(later(event.start, start));
+          const right = percent(nextDay(earlier(event.end, end)));
+          return markButton(channel, event, "--left:" + (event.start === event.end ? (left + right) / 2 : left) +
+            "%;--width:" + (right - left) + "%;--lane:" + lane, grouped);
+        }).join("");
+        if (!grouped) return members;
+        const middle = (percent(later(group.start, start)) + percent(nextDay(earlier(group.end, end)))) / 2;
+        const indices = group.events.map(event => channel.events.indexOf(event)).join(",");
+        const label = eventCount(group.events.length) + " · " + dates(group.start, group.end);
+        const uncertain = group.events.some(event => event.status !== "exact");
+        return '<div class="timeline-cluster"><button class="mark cluster' + (uncertain ? ' tentative' : '') +
+          '" type="button" data-channel="' + channel.id + '" data-group="' + indices + '" aria-label="' +
+          html(channel.title + " · " + label) + '" title="' + html(label) + '" style="--left:' +
+          middle + '%;--lane:' + lane + '"' + detailButtonAttrs + '><i class="cluster-dots" aria-hidden="true"></i></button>' +
+          members + '</div>';
       }).join("");
       const empty = events.length ? "" : '<span class="track-empty">Нет дат по выбранным условиям</span>';
       return '<div class="timeline-row row' + (selected ? " selected" : "") + '" style="--lanes:' + Math.max(1, laneEnds.length) + '">' +
@@ -362,23 +392,27 @@
     detailPopover.style.top = Math.max(margin, Math.min(top, viewportHeight - height - margin)) + "px";
   }
 
-  function openDetail(trigger, channel, event) {
+  function openDetail(trigger, channel, event, group) {
     if (detailTrigger === trigger && detailPopover.matches(":popover-open")) {
       detailPopover.hidePopover();
       return;
     }
     const category = categories[channel.category];
     const people = channel.audience.map(key => audiences[key]).join(" · ");
-    const schedule = channel.events.length ? '<ul class="detail-schedule">' + channel.events.map((item, index) => '<li' +
+    const items = group ?? channel.events;
+    const schedule = items.length ? '<ul class="detail-schedule">' + items.map(item => '<li' +
       (item === event ? ' class="current-event"' : '') + '><button type="button" class="detail-stage" data-stage-channel="' +
-      channel.id + '" data-stage-index="' + index + '" title="Показать на шкале"><strong>' + html(item.label) + '</strong><small>' +
+      channel.id + '" data-stage-index="' + channel.events.indexOf(item) + '" title="Показать на шкале"><strong>' + html(item.label) + '</strong><small>' +
       html(eventDates(item)) + (item.status === "exact" ? "" : ' · ' + statuses[item.status]) +
       '</small></button>' + source(item.url || channel.url, "Источник") + '</li>').join("") + '</ul>'
       : '<p>На шкале 2026–27 нет дат для этого канала.</p>';
     $("detail-heading").innerHTML = '<div class="card-meta" style="--track-color:' + category.color + '"><span><i></i>' +
       category.name + '</span><span>' + html(channel.place) + '</span></div><h2 id="detail-title">' +
       html(event?.label ?? channel.title) + '</h2>' + (event ? '<p class="detail-subtitle">' + html(channel.title) + '</p>' : '');
-    $("detail-content").innerHTML =
+    $("detail-content").innerHTML = group
+      ? '<p class="event-date">' + html(dates(group[0].start, group.reduce((end, item) => later(end, item.end), group[0].end))) +
+        '</p><h3>' + eventCount(group.length) + '</h3>' + schedule
+      :
       (event ? '<p class="event-date">' + html(eventDates(event)) + '</p><p class="status ' + event.status + '">' + statuses[event.status] +
         ' · ' + phases[event.phase] + '</p><p>' + source(event.url || channel.url, "Источник даты") + '</p>' : '') +
       '<p class="detail-audience">' + html(people) + '</p><p>' + html(channel.description) + '</p><h3>Этапы канала</h3>' + schedule +
@@ -404,6 +438,7 @@
 
     const marker = $("timeline").querySelector('.mark[data-channel="' + channel.id + '"][data-event="' + index + '"]');
     if (!marker) return;
+    if (marker.classList.contains("cluster-member")) marker.setAttribute("aria-expanded", "true");
     marker.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
     marker.focus({ preventScroll: true });
     openDetail(marker, channel, event);
@@ -411,8 +446,11 @@
 
   detailPopover.addEventListener("beforetoggle", event => {
     if (event.newState !== "closed") return;
+    const groupMarker = detailTrigger?.classList.contains("cluster-member") && detailPopover.contains(document.activeElement)
+      ? detailTrigger.closest(".timeline-cluster").querySelector(".cluster") : null;
     detailTrigger?.setAttribute("aria-expanded", "false");
     detailTrigger = null;
+    groupMarker?.focus({ preventScroll: true });
   });
   window.addEventListener("scroll", event => {
     if (event.target !== $("detail-content")) positionDetail();
@@ -452,7 +490,7 @@
   document.addEventListener("click", event => {
     const button = event.target.closest("button");
     if (!button) return;
-    const { year, view, channel, event: index, stageChannel, stageIndex } = button.dataset;
+    const { year, view, channel, event: index, stageChannel, stageIndex, group } = button.dataset;
     if (stageChannel) {
       showStageOnTimeline(byId[stageChannel], Number(stageIndex));
     } else if (year) {
@@ -464,7 +502,7 @@
       render();
     } else if (channel) {
       const record = byId[channel];
-      openDetail(button, record, record.events[index]);
+      openDetail(button, record, record.events[index], group?.split(",").map(id => record.events[id]));
     }
   });
   // Keep the panel navigation at the workspace heading, including on keyboard activation.

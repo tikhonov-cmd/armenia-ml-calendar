@@ -117,6 +117,7 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .legend-icon { display: inline-block; width: 21px; height: 9px; border-radius: 2px; color: var(--green); }
 .legend-icon.main-stage { background: var(--green); }
 .legend-icon.preparatory { border: 1px dashed var(--green); }
+.legend-icon.cluster-icon { display: inline-grid; place-items: center; width: 23px; height: 14px; --track-color: var(--rust); }
 .legend-icon.uncertain-date { height: 9px; border-bottom: 2px dotted var(--ink); border-radius: 0; }
 .legend-icon.overlap { width: 9px; height: 12px; background: #ddb397; border-inline: 1px solid #a96c4e; }
 .legend-icon.today { width: 2px; height: 13px; border-radius: 0; background: var(--rust); margin-left: 5px; }
@@ -169,6 +170,13 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .mark:hover::before { inset-block: 2px; }
 .mark:focus-visible { outline-offset: 1px; }
 .mark[aria-expanded="true"] { outline: 2px solid var(--green); outline-offset: 1px; }
+.timeline-cluster { display: contents; }
+.cluster-member:not([aria-expanded="true"]), .timeline-cluster:has(.cluster-member[aria-expanded="true"]) .cluster { display: none; }
+.mark.cluster { display: grid; place-items: center; left: clamp(12px, var(--left), 100% - 12px); width: 23px; transform: translateX(-50%); }
+.mark.cluster::before, .legend-icon.cluster-icon { border-radius: 5px; border: 1px solid var(--track-color); background: color-mix(in srgb, var(--track-color) 12%, var(--white)); }
+.mark.cluster::before { inset: 2px 0; }
+.mark.cluster:hover::before { background: color-mix(in srgb, var(--track-color) 22%, var(--white)); }
+.cluster-dots { position: relative; width: 3px; height: 3px; border-radius: 50%; background: var(--track-color); box-shadow: -5px 0 var(--track-color), 5px 0 var(--track-color); }
 
 .compare { margin-top: 12px; padding: 5px 8px 5px 12px; background: #e9eee5; border: 1px solid #cdd8ca; border-radius: 8px; }
 .compare-head { display: flex; flex-wrap: wrap; gap: 5px 14px; align-items: center; }
