@@ -28,6 +28,7 @@
   const todayPart = type => todayParts.find(part => part.type === type).value;
   const today = [todayPart("year"), todayPart("month"), todayPart("day")].join("-");
   const preparatoryPhases = new Set(["apply", "preparation", "selection"]);
+  const termWindowDays = 14;
   const state = { year: null, view: "timeline", selected: new Set() };
 
   const html = input => String(input).replace(/[&<>"']/g, letter => ({
@@ -113,7 +114,7 @@
   function markButton(channel, event, positioning = "", grouped = false) {
     const label = channel.title + ". " + event.label + ", " + eventDates(event) + ". " + statuses[event.status];
     const tooltip = event.label + " · " + eventDates(event) + " · " + statuses[event.status];
-    const shape = preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
+    const shape = event.phase === "termStart" ? "term-start" : preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
     return '<button class="mark ' + shape + ' ' + event.status + (event.start === event.end ? ' point' : '') +
       (grouped ? ' cluster-member' : '') +
       '" type="button" data-channel="' + channel.id + '" data-event="' + channel.events.indexOf(event) +
@@ -252,8 +253,28 @@
       });
     });
     overlaps.sort((a, b) => a.from.localeCompare(b.from));
-    document.querySelectorAll(".overlap-band").forEach(band => band.remove());
+    document.querySelectorAll(".overlap-band, .term-band").forEach(band => band.remove());
     const bands = new Map();
+    const termMatches = [];
+    const school = available.find(entry => entry.channel === pinnedChannel);
+    if (school) {
+      for (const { channel, events } of available) {
+        for (const event of events.filter(item => item.phase === "termStart")) {
+          const from = later(event.start, start);
+          const to = earlier(addDays(event.start, termWindowDays - 1), end);
+          for (const id of [channel.id, pinnedChannel.id]) {
+            const key = [id, from, to, "term"].join("/");
+            bands.set(key, { id, from, to, term: true });
+          }
+          for (const stage of school.events) {
+            const matchStart = later(stage.start, from);
+            const matchEnd = earlier(stage.end, to);
+            if (matchStart <= matchEnd) termMatches.push({ channel, event, stage, from: matchStart, to: matchEnd });
+          }
+        }
+      }
+    }
+    const hasTermBands = bands.size > 0;
     for (const { first, second, a, b, from, to } of overlaps) {
       const uncertain = a.status !== "exact" || b.status !== "exact";
       for (const channel of [first, second]) {
@@ -261,9 +282,9 @@
         bands.set(key, { id: channel.id, from, to, uncertain });
       }
     }
-    for (const { id, from, to, uncertain } of bands.values()) {
+    for (const { id, from, to, uncertain, term } of bands.values()) {
       const band = document.createElement("i");
-      band.className = uncertain ? "overlap-band uncertain" : "overlap-band";
+      band.className = term ? "term-band" : uncertain ? "overlap-band uncertain" : "overlap-band";
       band.setAttribute("aria-hidden", "true");
       const left = position(from, start, end);
       const width = position(nextDay(to), start, end) - left;
@@ -272,9 +293,12 @@
       document.querySelector('[data-track="' + id + '"]')?.prepend(band);
     }
     $("overlap-legend").hidden = overlaps.length === 0;
+    $("term-window-legend").hidden = !hasTermBands;
     const count = counted(overlaps.length, ["совпадение", "совпадения", "совпадений"]);
     const selectedCount = channelCount(selected.length);
-    $("compare-status").textContent = selectedCount + " · " + (available.length >= 2 ? count : "для сравнения нужны две строки");
+    const termCount = counted(termMatches.length, ["совпадение с началом семестра", "совпадения с началом семестра", "совпадений с началом семестра"]);
+    $("compare-status").textContent = selectedCount + " · " + (available.length >= 2 ? count : "для сравнения нужны две строки") +
+      (termMatches.length ? " · " + termCount : "");
     let result;
     if (available.length < 2) {
       result = '<p class="small-note">Для сравнения выберите ещё один канал с видимыми датами.</p>';
@@ -291,7 +315,14 @@
             '</strong><div>' + overlapButton(first, a) + overlapButton(second, b) + '</div></li>';
         }).join("") + '</ul>';
     }
-    $("compare-content").innerHTML = intro + result;
+    const termDetails = hasTermBands
+      ? '<h4 class="term-compare-heading">Первые две недели семестра</h4><p class="small-note">Окно сравнения включает 14 календарных дней с даты начала занятий.</p>' +
+        (termMatches.length ? '<ul class="overlap-list">' + termMatches.map(({ channel, event, stage, from, to }) =>
+          '<li><strong>' + html(dates(from, to, state.year === null)) + '</strong><div>' +
+          overlapButton(channel, event) + overlapButton(pinnedChannel, stage) + '</div></li>').join("") + '</ul>'
+          : '<p class="small-note">На эти окна не приходится ни одного видимого этапа ML School.</p>')
+      : "";
+    $("compare-content").innerHTML = intro + result + termDetails;
   }
 
   function overlapButton(channel, event) {
@@ -415,7 +446,9 @@
       :
       (event ? '<p class="event-date">' + html(eventDates(event)) + '</p><p class="status ' + event.status + '">' + statuses[event.status] +
         ' · ' + phases[event.phase] + '</p><p>' + source(event.url || channel.url, "Источник даты") + '</p>' : '') +
-      '<p class="detail-audience">' + html(people) + '</p><p>' + html(channel.description) + '</p><h3>Этапы канала</h3>' + schedule +
+      '<p class="detail-audience">' + (event?.phase === "termStart"
+        ? html(event.cohort + " · " + event.academicYear + " учебный год")
+        : html(people)) + '</p><p>' + html(channel.description) + '</p><h3>Этапы канала</h3>' + schedule +
       '<div class="detail-footer">' + source(channel.url, "О канале") + '</div>';
     detailTrigger?.setAttribute("aria-expanded", "false");
     detailTrigger = trigger;

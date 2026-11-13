@@ -13,7 +13,7 @@
   const statuses = {
     exact: "Даты опубликованы", approximate: "Ориентир", tentative: "Предварительно",
   };
-  const phases = { apply: "Заявки", preparation: "Подготовка", selection: "Отбор", event: "Основной этап", result: "Результаты" };
+  const phases = { apply: "Заявки", preparation: "Подготовка", selection: "Отбор", event: "Основной этап", result: "Результаты", termStart: "Начало занятий" };
   const levels = [
     { name: "Точка входа", detail: "Набор, открытое мероприятие или сообщество. Сам контакт с каналом ничего не говорит об уровне подготовки." },
     { name: "Участие или зачисление", detail: "Факт участия, завершения курса или прохождения в программу. Для оценки подготовки нужны дополнительные материалы." },
@@ -26,6 +26,7 @@
   const legal = "https://arlis.am/hy/acts/224057";
   const ysu = "https://www.ysu.am/undergraduate-admission/254";
   const aua = "https://admissions.aua.am/ugrad/";
+  const auaCalendar = "https://registrar.aua.am/academic-calendar-2026-2027/";
   const yerevann = "https://yerevann.com/ai-ecosystem-2026/";
   const aoaiReport = "https://escs.gov.am/en/articles/news/armenian-schoolchildren-share-their-experience-after-successfully-performing-at-the-international-olympiad-in-artificial-intelligence";
   const schoolAdmission = "https://www.armedu.am/index.php/am/news/view/14080";
@@ -42,6 +43,10 @@
   const date = (label, start, end = start, phase = "event", status = "exact", url) =>
     ({ label, start, end, phase, status, url });
   const point = (label, day, phase, url) => date(label, day, day, phase, "exact", url);
+  const termStart = (label, day, url, cohort) => ({
+    ...point(label, day, "termStart", url), cohort,
+    academicYear: day.slice(0, 4) + "/" + (Number(day.slice(0, 4)) + 1),
+  });
   const metric = (value, unit, label, year, url, prefix = "") => ({ value, unit, label, year, url, prefix });
   const channels = [];
   const add = (id, title, category, audience, place, url, description, level, achievement, details = {}) =>
@@ -182,17 +187,24 @@
     0, "Сроки заявок и результаты нужны для планирования коммуникации. Подготовку стоит оценивать по конкретной программе и работам.",
     { metrics: [metric(15859, "заявителей", "Указали вуз и специальность", "2026", schoolAdmission), metric(10958, "зачисленных", "Зачислены по основному и дополнительному конкурсам", "2026", schoolAdmission)],
       events: [date("Выбор вуза и специальности", "2026-04-15", "2026-05-10", "apply"), point("Публикация итогов приёма", "2026-08-05", "result")] });
-  add("aua", "AUA · бакалавриат CS и Data Science", "admissions", ["pupil"], "Ереван", aua,
+  add("aua", "AUA · бакалавриат CS и Data Science", "admissions", ["pupil", "bachelor"], "Ереван", aua,
     "American University of Armenia. Приём с несколькими дедлайнами. Последний этап зависит от наличия мест.",
     1, "Факт зачисления даёт контекст. По курсам и проектам можно узнать, какой профиль студент выбрал на практике.",
     { formal: { text: "AUA указывает награды среди сведений, которые рассматривает при комплексной оценке заявки. Их влияние на отдельное решение не опубликовано.", url: aua },
-      events: [point("Открытие заявок", "2026-11-01", "apply"), point("Ранний дедлайн", "2027-01-15", "apply"), point("Основной дедлайн", "2027-04-30", "apply"), point("Дополнительный дедлайн при наличии мест", "2027-06-01", "apply")] });
-  add("ysu", "ЕГУ · профильный бакалавриат", "admissions", ["pupil"], "Ереван", ysu,
+      events: [
+        termStart("Начало занятий осенью", "2026-08-24", auaCalendar, "Студенты бакалавриата"),
+        point("Открытие заявок", "2026-11-01", "apply"), point("Ранний дедлайн", "2027-01-15", "apply"),
+        point("Основной дедлайн", "2027-04-30", "apply"), point("Дополнительный дедлайн при наличии мест", "2027-06-01", "apply"),
+        termStart("Начало занятий осенью", "2027-08-25", auaCalendar, "Студенты бакалавриата"),
+      ] });
+  add("ysu", "ЕГУ · профильный бакалавриат", "admissions", ["pupil", "bachelor"], "Ереван", ysu,
     "Прикладная статистика и Data Science, информатика и прикладная математика, а также смежная физическая траектория с ИИ. Общие сроки вынесены в строку централизованного приёма.",
-    1, "Для интерпретации зачисления уточняйте программу, профильные предметы, курсовые и лабораторные работы.");
-  add("ysu-ijevan", "ЕГУ · бакалавриат в Иджеване", "admissions", ["pupil"], "Иджеван", "https://ijevan.ysu.am/en/faculty/1/educational-program-16/edu-plan",
+    1, "Для интерпретации зачисления уточняйте программу, профильные предметы, курсовые и лабораторные работы.",
+    { events: [termStart("Начало учебного года", "2026-09-01", "https://www.ysu.am/en/news/99844", "Студенты бакалавриата")] });
+  add("ysu-ijevan", "ЕГУ · бакалавриат в Иджеване", "admissions", ["pupil", "bachelor"], "Иджеван", "https://ijevan.ysu.am/en/faculty/1/educational-program-16/edu-plan",
     "Филиал ЕГУ в Тавуше. В учебном плане 2026/27 есть очный бакалавриат по информатике и прикладной математике.",
-    1, "Факт зачисления даёт контекст. Для проверки подготовки подойдут курсовые, задачи по математике или программированию.");
+    1, "Факт зачисления даёт контекст. Для проверки подготовки подойдут курсовые, задачи по математике или программированию.",
+    { events: [termStart("Начало учебного года", "2026-09-01", "https://ijevan.ysu.am/ru/node/7544", "Студенты бакалавриата филиала")] });
   add("diaspora", "Приём иностранных абитуриентов и диаспоры", "admissions", ["pupil", "bachelor", "graduate"], "Армения", "https://escs.gov.am/en/articles/announcements/call-for-applications-and-submission-of-documents-of-foreign-applicants-including-diaspora-armenians-for-admission-to-educational-institutions-offering-higher-educational-programs-in-the-republic-of-armenia-2026-2027-academic-year",
     "Отдельный процесс для иностранных абитуриентов, включая армян диаспоры. Показаны сроки подачи на платное обучение.",
     0, "Календарь подачи помогает планировать коммуникацию с абитуриентами, проходящими по этой процедуре.",
@@ -200,9 +212,10 @@
   add("npua", "НПУА · инженерия и ИИ", "admissions", ["pupil"], "Ереван", "https://fs.emis.am/educationProgram/profession/30168/29",
     "Национальный политехнический университет Армении. В публичном реестре есть программа по системам ИИ.",
     1, "Направление обучения даёт контекст. Спросите об алгоритмической, инженерной и проектной части программы.");
-  add("rau", "РАУ · технический бакалавриат", "admissions", ["pupil"], "Ереван", "https://rau.am/abitur/bachelor/",
+  add("rau", "РАУ · технический бакалавриат", "admissions", ["pupil", "bachelor"], "Ереван", "https://rau.am/abitur/bachelor/",
     "Российско-Армянский университет. Сектор и форма обучения влияют на правила приёма.",
-    1, "Уточняйте сектор и специальность, затем сверяйте результаты по профильным дисциплинам и проектам.");
+    1, "Уточняйте сектор и специальность, затем сверяйте результаты по профильным дисциплинам и проектам.",
+    { events: [termStart("Начало занятий осенью", "2026-09-01", "https://rau.am/content/obshie-svedenia", "Студенты бакалавриата")] });
   add("ufar", "UFAR · бакалавриат по информатике", "admissions", ["pupil"], "Ереван", "https://ufar.am/admission/bachelors",
     "Французский университет в Армении. Профильный факультет информатики и прикладной математики.",
     1, "Уточняйте направление, языки обучения и проектную часть.");
