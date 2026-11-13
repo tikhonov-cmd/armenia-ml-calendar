@@ -181,8 +181,6 @@
     })));
     const monthPercents = [...months.map(month => percent(month.date)), 100];
     const columnWidths = months.map((_, i) => (monthPercents[i + 1] - monthPercents[i]) + "fr").join(" ");
-    const showToday = today >= start && today <= end;
-    const todayLine = showToday ? '<i class="today-line" aria-hidden="true" style="left:' + percent(today) + '%"></i>' : "";
     const monthClass = month => month.yearStart ? ' class="year-start"' : "";
     const grid = '<div class="months gridlines" aria-hidden="true">' + months.map(month => '<i' + monthClass(month) + '></i>').join("") + "</div>";
     const yearLabels = multiYear ? periodYears.map(year => '<strong class="timeline-year">' + year + '</strong>').join("") : "";
@@ -217,7 +215,7 @@
       return '<div class="timeline-row row' + (selected ? " selected" : "") + '" style="--lanes:' + Math.max(1, laneEnds.length) + '">' +
         '<div class="row-label"><input type="checkbox" data-compare="' + channel.id + '" aria-label="Сравнить: ' + html(channel.title) + '"' +
         (selected ? ' checked' : '') + '><button class="channel-button" type="button" data-channel="' + channel.id +
-        '"' + detailButtonAttrs + '>' + html(channel.title) + '</button></div><div class="track" data-track="' + channel.id + '">' + grid + todayLine + marks + empty + '</div></div>';
+        '"' + detailButtonAttrs + '>' + html(channel.title) + '</button></div><div class="track" data-track="' + channel.id + '">' + grid + marks + empty + '</div></div>';
     }
     const pinnedRow = '<div class="timeline-pinned" style="--track-color:' + categories[pinned.channel.category].color + '">' + row(pinned) + '</div>';
     const groups = categoryOrder.filter(category => entries.some(entry => entry.channel.category === category)).map(category => {
@@ -336,7 +334,7 @@
       .sort((a, b) => later(a.event.start, today).localeCompare(later(b.event.start, today)) || a.event.end.localeCompare(b.event.end));
     const channelTotal = new Set(events.map(entry => entry.channel.id)).size;
     $("calendar-count").textContent = channelCount(channelTotal) + " · " + eventCount(events.length);
-    $("calendar-note").textContent = "Дата «сегодня» определяется по времени Еревана. Показаны будущие этапы и окна, которые ещё идут.";
+    $("calendar-note").textContent = "Будущие и текущие этапы по времени Еревана.";
     $("calendar-content").innerHTML = events.length
       ? '<ul class="upcoming">' + events.map(({ channel, event }) => '<li style="--track-color:' + categories[channel.category].color +
         '"><span class="upcoming-date">' + html(eventDates(event)) + '</span><div><button class="text-button" type="button" data-channel="' +

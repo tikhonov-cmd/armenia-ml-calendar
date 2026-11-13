@@ -122,7 +122,6 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .legend-icon.overlap { width: 9px; height: 12px; background: #ddb397; border-inline: 1px solid #a96c4e; }
 .legend-icon.term-start { position: relative; width: 14px; height: 14px; }
 .legend-icon.term-window { height: 12px; background: #d7e6ee; border-inline: 1px solid #7098af; }
-.legend-icon.today { width: 2px; height: 13px; border-radius: 0; background: var(--rust); margin-left: 5px; }
 .result-count { margin-block: 12px 7px; color: var(--muted); font-size: .82rem; font-variant-numeric: tabular-nums; }
 .small-note { color: var(--muted); font-size: .84rem; }
 #calendar-note { margin-top: 11px; }
@@ -161,7 +160,6 @@ select { width: 100%; appearance: none; padding: 6px 30px 6px 11px; background-i
 .overlap-band { position: absolute; inset-block: 0; width: max(7px, var(--span)); background: #b9744c50; border-inline: 1px solid #a96c4e85; transform: translateX(-50%); pointer-events: none; }
 .overlap-band.uncertain { background: #b9744c28; border-inline: 1px dashed #a96c4e; }
 .term-band { position: absolute; inset-block: 0; width: var(--span); background: #548bad29; border-inline: 1px solid #547f9955; transform: translateX(-50%); pointer-events: none; }
-.today-line { position: absolute; inset-block: 0; width: 1px; background: var(--rust); opacity: .65; pointer-events: none; }
 .mark { position: absolute; left: var(--left); top: calc(10px + var(--lane) * 21px); width: max(var(--width), 9px); height: 18px; padding: 0; border: 0; border-radius: 4px; background: transparent; }
 .mark::before { content: ""; position: absolute; inset: 4px 0; border-radius: 3px; border: 1px solid var(--track-color); background: var(--track-color); }
 .mark.point { width: 16px; transform: translateX(-50%); }
