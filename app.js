@@ -114,11 +114,12 @@
   function markButton(channel, event, positioning = "", grouped = false) {
     const label = channel.title + ". " + event.label + ", " + eventDates(event) + ". " + statuses[event.status];
     const tooltip = event.label + " · " + eventDates(event) + " · " + statuses[event.status];
-    const shape = event.phase === "termStart" ? "term-start" : preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
+    const shape = event.phase === "session" ? "exam-session" : event.phase === "termStart" ? "term-start" : preparatoryPhases.has(event.phase) ? "preparatory" : "main-stage";
     return '<button class="mark ' + shape + ' ' + event.status + (event.start === event.end ? ' point' : '') +
       (grouped ? ' cluster-member' : '') +
       '" type="button" data-channel="' + channel.id + '" data-event="' + channel.events.indexOf(event) +
-      '" aria-label="' + html(label) + '" title="' + html(tooltip) + '" style="' + positioning + '"' + detailButtonAttrs + '></button>';
+      '" aria-label="' + html(label) + '" title="' + html(tooltip) + '" style="' + positioning + '"' + detailButtonAttrs + '>' +
+      (event.phase === "session" ? '<i class="session-icon" aria-hidden="true"></i>' : '') + '</button>';
   }
 
   function timelineGroups(channel, events) {
@@ -444,9 +445,10 @@
       :
       (event ? '<p class="event-date">' + html(eventDates(event)) + '</p><p class="status ' + event.status + '">' + statuses[event.status] +
         ' · ' + phases[event.phase] + '</p><p>' + source(event.url || channel.url, "Источник даты") + '</p>' : '') +
-      '<p class="detail-audience">' + (event?.phase === "termStart"
+      '<p class="detail-audience">' + (event?.cohort
         ? html(event.cohort + " · " + event.academicYear + " учебный год")
-        : html(people)) + '</p><p>' + html(channel.description) + '</p><h3>Этапы канала</h3>' + schedule +
+        : html(people)) + '</p>' + (event?.note ? '<p class="small-note">' + html(event.note) + '</p>' : '') +
+      '<p>' + html(channel.description) + '</p><h3>Этапы канала</h3>' + schedule +
       '<div class="detail-footer">' + source(channel.url, "О канале") + '</div>';
     detailTrigger?.setAttribute("aria-expanded", "false");
     detailTrigger = trigger;

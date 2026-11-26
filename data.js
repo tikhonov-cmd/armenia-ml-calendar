@@ -4,6 +4,7 @@
   const categories = {
     olympiad: { name: "Олимпиады", color: "#9e452e" },
     admissions: { name: "Поступление", color: "#365c4b" },
+    academic: { name: "Учебный календарь", color: "#8a6425" },
     school: { name: "Школы и курсы", color: "#62468a" },
     contest: { name: "Конкурсы", color: "#8a571a" },
     practice: { name: "Лабы и стажировки", color: "#346478" },
@@ -13,7 +14,7 @@
   const statuses = {
     exact: "Даты опубликованы", approximate: "Ориентир", tentative: "Предварительно",
   };
-  const phases = { apply: "Заявки", preparation: "Подготовка", selection: "Отбор", event: "Основной этап", result: "Результаты", termStart: "Начало занятий" };
+  const phases = { apply: "Заявки", preparation: "Подготовка", selection: "Отбор", event: "Основной этап", result: "Результаты", termStart: "Начало занятий", session: "Экзаменационная сессия" };
   const levels = [
     { name: "Точка входа", detail: "Набор, открытое мероприятие или сообщество. Сам контакт с каналом ничего не говорит об уровне подготовки." },
     { name: "Участие или зачисление", detail: "Факт участия, завершения курса или прохождения в программу. Для оценки подготовки нужны дополнительные материалы." },
@@ -51,6 +52,9 @@
     academicYear: day.slice(0, 4) + "/" + (Number(day.slice(0, 4)) + 1),
   });
   const metric = (value, unit, label, year, url, prefix = "") => ({ value, unit, label, year, url, prefix });
+  const session = (label, start, end, status, url, cohort, academicYear, note = "") => ({
+    ...date(label, start, end, "session", status, url), cohort, academicYear, note,
+  });
   const channels = [];
   const add = (id, title, category, audience, place, url, description, level, achievement, details = {}) =>
     channels.push({ id, title, category, audience, place, url, description, level, achievement, events: [], metrics: [], ...details });
@@ -364,5 +368,45 @@
     "Профессиональное сообщество по машинному обучению. Канал знакомства с практиками и авторами работ.",
     0, "Публичный разбор, выступление или проект можно оценить отдельно.");
 
-  globalThis.armeniaAtlas = { categories, audiences, statuses, phases, levels, channels, years: [2026, 2027], updated: "2026-11-11" };
+
+  const ysuSessionCalendar = "https://www.ysu.am/faculty/78/articles/85701";
+  const ijevanCalendar = "https://ijevan.ysu.am/academic_calendar";
+  const rauPmiCalendar = "https://rau.am/sveden/files/vif/Graf_PMI_bak2_15.05.2026.pdf";
+  const generalSessionNote = "Сводный ориентир по календарям AUA, ЕГУ и РАУ. Точные даты зависят от вуза, курса и формы обучения.";
+  add("university-sessions", "Сессии вузов · общий ориентир", "academic", ["bachelor", "graduate"], "Армения", auaCalendar,
+    "Зимние сессии приходятся на декабрь–январь, летние — на май–июль. AUA проводит весенние экзамены в мае, а летний семестр имеет отдельную сессию в августе. Сводка охватывает основные сессии AUA, ЕГУ и РАУ.",
+    0, "Периоды учебной нагрузки помогают выбрать даты отбора и занятий.",
+    { events: [
+      session("Зимняя сессия · общий ориентир", "2026-01-01", "2026-01-31", "approximate", ysuSessionCalendar, "Очные бакалавры и магистранты", "2025/26", generalSessionNote),
+      session("Летняя сессия · общий ориентир", "2026-05-01", "2026-07-31", "approximate", ijevanCalendar, "Очные бакалавры и магистранты", "2025/26", generalSessionNote),
+      session("Зимняя сессия · общий ориентир", "2026-12-01", "2027-01-31", "approximate", auaCalendar, "Очные бакалавры и магистранты", "2026/27", generalSessionNote),
+      session("Летняя сессия · общий ориентир", "2027-05-01", "2027-07-31", "approximate", rauPmiCalendar, "Очные бакалавры и магистранты", "2026/27", generalSessionNote),
+    ] });
+  const auaSessions = [
+    session("Весенняя сессия", "2026-05-15", "2026-05-22", "exact", "https://registrar.aua.am/academic-calendar-2025-2026/", "Студенты бакалавриата", "2025/26", "Интервал от первого до последнего экзаменационного дня в календаре AUA. Расписание отдельного студента зависит от курсов."),
+    session("Сессия летнего семестра", "2026-08-10", "2026-08-11", "exact", "https://registrar.aua.am/academic-calendar-2025-2026/", "Студенты, посещающие летний семестр", "2025/26"),
+    session("Зимняя сессия", "2026-12-11", "2026-12-16", "exact", auaCalendar, "Студенты бакалавриата", "2026/27"),
+    session("Весенняя сессия · ориентир", "2027-05-01", "2027-05-31", "approximate", auaCalendar, "Студенты бакалавриата", "2026/27", "Даты экзаменов пока отмечены в календаре как TBD. Занятия заканчиваются 15 мая, оценки сдаются к 24 мая. На шкале выделен месяц."),
+    session("Сессия летнего семестра", "2027-08-09", "2027-08-10", "exact", auaCalendar, "Студенты, посещающие летний семестр", "2026/27"),
+  ];
+  channels.find(channel => channel.id === "aua").events.push(...auaSessions);
+  const ysuSessions = [
+    session("Зимняя сессия", "2026-01-05", "2026-01-23", "exact", ysuSessionCalendar, "Очные бакалавры и магистранты", "2025/26"),
+    session("Летняя сессия · ориентир", "2026-06-01", "2026-06-30", "approximate", "https://www.ysu.am/sites/default/files/inline-files/YEREVAN%20STATE%20UNIVERSITY%20Fact%20Sheet%20%282%29.pdf", "Очные бакалавры и магистранты", "2025/26", "Месяц выбран как ориентир по структуре учебного года ЕГУ. Точное расписание по курсам требует уточнения."),
+    session("Зимняя сессия · ориентир", "2027-01-01", "2027-01-31", "approximate", ysuSessionCalendar, "Очные бакалавры и магистранты", "2026/27", "Прогноз по январской сессии 2025/26. Подтверждённый график 2026/27 пока не найден."),
+    session("Летняя сессия · ориентир", "2027-06-01", "2027-06-30", "approximate", "https://www.ysu.am/sites/default/files/inline-files/YEREVAN%20STATE%20UNIVERSITY%20Fact%20Sheet%20%282%29.pdf", "Очные бакалавры и магистранты", "2026/27", "Ориентир по структуре учебного года. Точные даты требуют уточнения."),
+  ];
+  channels.find(channel => channel.id === "ysu").events.push(...ysuSessions);
+  channels.find(channel => channel.id === "ysu-ijevan").events.push(
+    session("Зимняя сессия", "2026-01-07", "2026-01-24", "exact", ijevanCalendar, "Очные бакалавры филиала", "2025/26", "На странице есть разделы разных учебных лет. Использован раздел 2025/26."),
+    session("Летняя сессия · ориентир", "2026-06-01", "2026-06-30", "approximate", ijevanCalendar, "Очные бакалавры филиала", "2025/26", "Ориентир по сессии 3–21 июня 2025 года. В разделе весны 2026 точные даты сессии не указаны."),
+    session("Зимняя сессия · ориентир", "2027-01-01", "2027-01-31", "approximate", ijevanCalendar, "Очные бакалавры филиала", "2026/27", "Прогноз по предыдущему циклу. Точные даты требуют уточнения."),
+    session("Летняя сессия · ориентир", "2027-06-01", "2027-06-30", "approximate", ijevanCalendar, "Очные бакалавры филиала", "2026/27", "Прогноз по предыдущим циклам. Точные даты требуют уточнения."),
+  );
+  channels.find(channel => channel.id === "rau").events.push(
+    session("Зимняя сессия · ПМИ, 2-й курс", "2027-01-05", "2027-01-25", "exact", rauPmiCalendar, "Очный бакалавриат «Прикладная математика и информатика», 2-й курс", "2026/27", "Недели 19–21 календарного учебного графика."),
+    session("Летняя сессия · ПМИ, 2-й курс", "2027-06-08", "2027-07-05", "exact", rauPmiCalendar, "Очный бакалавриат «Прикладная математика и информатика», 2-й курс", "2026/27", "Недели 41–44 календарного учебного графика. У выпускного курса сроки другие."),
+  );
+
+  globalThis.armeniaAtlas = { categories, audiences, statuses, phases, levels, channels, years: [2026, 2027], updated: "2026-11-26" };
 })();
